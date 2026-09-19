@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioLock - Behavioral Biometrics Auth</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #1e293b; border-radius: 12px; padding: 32px; width: 440px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h2 { margin-top: 0; color: #38bdf8; text-align: center; }
+        p.subtitle { font-size: 13px; color: #94a3b8; text-align: center; margin-bottom: 24px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 13px; margin-bottom: 6px; color: #cbd5e1; }
+        input { width: 100%; padding: 10px 14px; background: #334155; border: 1px solid #475569; border-radius: 6px; color: #fff; outline: none; font-size: 14px; }
+        input:focus { border-color: #38bdf8; }
+        .btn-group { display: flex; gap: 10px; margin-top: 24px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; }
+        .btn-primary { background: #0284c7; color: white; }
+        .btn-primary:hover { background: #0369a1; }
+        .btn-secondary { background: #475569; color: white; }
+        .btn-secondary:hover { background: #64748b; }
+        #log { margin-top: 20px; padding: 12px; border-radius: 6px; font-size: 13px; display: none; }
+        .success { background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #4ade80; }
+        .error { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>BioLock</h2>
+    <p class="subtitle">Continuous Keystroke Dynamics Authentication</p>
+
+    <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Enter username">
+    </div>
+
+    <div class="form-group">
+        <label>Passphrase</label>
+        <input type="password" id="password" placeholder="Type your passphrase naturally">
+    </div>
+
+    <div class="btn-group">
+        <button class="btn-secondary" onclick="enrollUser()">1. Enroll Baseline</button>
+        <button class="btn-primary" onclick="verifyUser()">2. Test Login</button>
+    </div>
+
+    <div id="log"></div>
+</div>
+
+<script>
+    let timings = [];
+    let keyPressTimes = {};
+    let lastKeyUp = 0;
+
+    const passInput = document.getElementById('password');
+
+    passInput.addEventListener('keydown', (e) => {
+        if (!keyPressTimes[e.code]) {
+            const now = performance.now();
+            keyPressTimes[e.code] = now;
+            if (lastKeyUp !== 0) {
+                timings.push(now - lastKeyUp);
+            }
+        }
+    });
+
+    passInput.addEventListener('keyup', (e) => {
+        const now = performance.now();
+        if (keyPressTimes[e.code]) {
+            timings.push(now - keyPressTimes[e.code]);
+            delete keyPressTimes[e.code];
+        }
+        lastKeyUp = now;
+    });
+
+    function resetTimings() {
+        timings = [];
+        keyPressTimes = {};
+        lastKeyUp = 0;
+    }
+
+    passInput.addEventListener('focus', resetTimings);
+
+    async function enrollUser() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        if (!username || !password) {
+            showLog('Please fill in both username and passphrase.', false);
+            return;
+        }
+
+        const payload = { username, password, timings: [...timings] };
+        resetTimings();
+
+        const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        showLog(data.message, data.success);
+    }
+
+    async function verifyUser() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        if (!username || !password) {
+            showLog('Please fill in both username and passphrase.', false);
+            return;
+        }
+
+        const payload = { username, password, timings: [...timings] };
+        resetTimings();
+
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        const detail = data.euclideanDistance ? ` [Distance Score: ${data.euclideanDistance}]` : '';
+        showLog(data.message + detail, data.success);
+    }
+
+    function showLog(msg, isSuccess) {
+        const log = document.getElementById('log');
+        log.style.display = 'block';
+        log.className = isSuccess ? 'success' : 'error';
+        log.innerText = msg;
+    }
+</script>
+
+</body>
+</html>
