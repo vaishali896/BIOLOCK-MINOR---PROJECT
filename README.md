@@ -1,4 +1,4 @@
-# BioLock: Behavioral Biometric Authentication System
+ # BioLock: Behavioral Biometric Authentication System
 > **LNCT Minor Project** | Department of Computer Science & Engineering
 
 BioLock is a hardware-free, multi-factor authentication (MFA) engine built with **Spring Boot 3** and **Java 17**. It validates user identity by analyzing neuro-muscular typing cadence (dwell time and flight latency) alongside standard password credentials.
